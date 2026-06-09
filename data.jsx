@@ -142,7 +142,25 @@ function randomFunny(exclude) {
   return n;
 }
 
+// Petites célébrations à l'arrivée d'un participant
+const JOIN_EMOJIS = ["🎉", "🎊", "🥳", "🪩", "🎈", "✨", "🌟", "🎁", "🪅", "🚀", "🎯", "🌈"];
+const JOIN_LINES = [
+  "vient de débarquer",
+  "rejoint la fête",
+  "s'invite à la rétro",
+  "fait une entrée fracassante",
+  "arrive en mode ninja",
+  "se pose tranquillement",
+  "déboule avec le café",
+  "rejoint l'aventure",
+  "s'incruste avec joie",
+  "monte sur scène",
+];
+const joinEmoji = () => JOIN_EMOJIS[Math.floor(Math.random() * JOIN_EMOJIS.length)];
+const joinLine  = () => JOIN_LINES[Math.floor(Math.random() * JOIN_LINES.length)];
+
 Object.assign(window, {
   POSTIT_COLORS, AVATAR_COLORS, SIM_NOTES, FUNNY_NAMES, randomFunny,
+  JOIN_EMOJIS, JOIN_LINES, joinEmoji, joinLine,
   makeDemoSession, makeFreshSession, genCode, uid, tiltFor, makeParticipant,
 });

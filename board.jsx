@@ -52,7 +52,7 @@ function TimerPill({ timer, isAdmin, actions }) {
 }
 
 /* ---------------- Header ---------------- */
-function BoardHeader({ session, isAdmin, currentUser, colorsById, actions, hiddenCount }) {
+function BoardHeader({ session, isAdmin, currentUser, colorsById, actions, hiddenCount, freshIds }) {
   const phaseLabel = session.phase === "collecte" ? "Collecte en cours"
     : session.phase === "clos" ? "Session terminée"
     : "Révélation & discussion";
@@ -94,7 +94,7 @@ function BoardHeader({ session, isAdmin, currentUser, colorsById, actions, hidde
       <TimerPill timer={session.timer} isAdmin={isAdmin} actions={actions} />
 
       {/* Participants */}
-      <AvatarStack users={session.participants} size={32} />
+      <AvatarStack users={session.participants} size={32} freshIds={freshIds} />
 
       {/* Bascule de rôle */}
       <Dropdown align="right" width={250} trigger={
@@ -265,7 +265,7 @@ function Column({ col, notes, session, isAdmin, currentUser, colorsById, actions
               <PostIt key={n.id} note={n} color={colorsById[n.colorId] || POSTIT_COLORS[0]}
                 author={canSee ? author : null}
                 canSee={canSee} isMine={n.authorId === currentUser.id} currentUser={currentUser} isAdmin={isAdmin}
-                onVote={actions.vote} onReveal={actions.revealOne} onDelete={actions.deleteNote}
+                onVote={actions.vote} onReveal={actions.revealOne} onDelete={actions.deleteNote} onEdit={actions.editNote}
                 onDragStart={(e, note) => { e.dataTransfer.setData("text/plain", note.id); setDraggingId(note.id); }}
                 dragging={draggingId === n.id}
                 onDropOnto={(target) => { if (draggingId && draggingId !== target.id) actions.groupNotes(draggingId, target.id); setDraggingId(null); }} />
@@ -342,7 +342,7 @@ function GroupCluster({ groupId, notes, col, session, isAdmin, currentUser, colo
 }
 
 /* ---------------- Board ---------------- */
-function Board({ session, isAdmin, currentUser, colorsById, actions }) {
+function Board({ session, isAdmin, currentUser, colorsById, actions, freshIds }) {
   const [draggingId, setDraggingId] = React.useState(null);
   const [dragOverCol, setDragOverCol] = React.useState(null);
 
@@ -351,7 +351,7 @@ function Board({ session, isAdmin, currentUser, colorsById, actions }) {
   return (
     <div className="app">
       <BoardHeader session={session} isAdmin={isAdmin} currentUser={currentUser}
-        colorsById={colorsById} actions={actions} hiddenCount={hiddenCount} />
+        colorsById={colorsById} actions={actions} hiddenCount={hiddenCount} freshIds={freshIds} />
 
       {/* hint reveal */}
       {isAdmin && session.phase === "collecte" && hiddenCount > 0 && (

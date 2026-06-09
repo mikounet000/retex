@@ -34,10 +34,11 @@ function Icon({ name, size = 20, stroke = 2, ...rest }) {
 }
 
 /* ---------------- Avatar ---------------- */
-function Avatar({ user, size = 34, showStar = true }) {
+function Avatar({ user, size = 34, showStar = true, fresh = false }) {
   const initials = user.name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase();
   return (
-    <div className="avatar" title={user.name + (user.isAdmin ? " · animateur" : "")}
+    <div className={"avatar" + (fresh ? " avatar--fresh" : "")}
+         title={user.name + (user.isAdmin ? " · animateur" : "")}
          style={{ "--sz": size + "px", background: user.color, position: "relative" }}>
       {initials}
       {showStar && user.isAdmin && (
@@ -51,14 +52,18 @@ function Avatar({ user, size = 34, showStar = true }) {
   );
 }
 
-function AvatarStack({ users, size = 32, max = 6 }) {
-  const shown = users.slice(0, max);
-  const extra = users.length - shown.length;
+function AvatarStack({ users, size = 32, max = 6, freshIds }) {
+  // Les arrivants récents passent en tête de pile pour rester visibles
+  const ordered = freshIds && freshIds.size > 0
+    ? [...users].sort((a, b) => (freshIds.has(b.id) ? 1 : 0) - (freshIds.has(a.id) ? 1 : 0))
+    : users;
+  const shown = ordered.slice(0, max);
+  const extra = ordered.length - shown.length;
   return (
     <div style={{ display: "flex", alignItems: "center" }}>
       {shown.map((u, i) => (
         <div key={u.id} style={{ marginLeft: i === 0 ? 0 : -10, zIndex: shown.length - i }}>
-          <Avatar user={u} size={size} />
+          <Avatar user={u} size={size} fresh={freshIds && freshIds.has(u.id)} />
         </div>
       ))}
       {extra > 0 && (
@@ -76,11 +81,37 @@ function PostIt({ note, color, author, canSee, isMine, currentUser, isAdmin,
                   onVote, onReveal, onEdit, onDelete, onDragStart, dragging,
                   onDropOnto, groupCount }) {
   const [revealing, setRevealing] = React.useState(false);
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(note.text);
+  const taRef = React.useRef(null);
   const hidden = !canSee;
   const voted = note.votes.includes(currentUser.id);
   const tilt = note.tilt || 0;
+  const canEdit = isMine && !hidden && onEdit;
+
+  React.useEffect(() => { if (!editing) setDraft(note.text); }, [note.text, editing]);
+  React.useEffect(() => {
+    if (editing && taRef.current) {
+      taRef.current.focus();
+      taRef.current.setSelectionRange(taRef.current.value.length, taRef.current.value.length);
+    }
+  }, [editing]);
+
+  const startEdit = (e) => {
+    if (!canEdit) return;
+    e && e.stopPropagation();
+    setDraft(note.text);
+    setEditing(true);
+  };
+  const commitEdit = () => {
+    const v = draft.trim();
+    if (v && v !== note.text) onEdit(note.id, v);
+    setEditing(false);
+  };
+  const cancelEdit = () => { setDraft(note.text); setEditing(false); };
 
   const handleClick = () => {
+    if (editing) return;
     if (hidden && isAdmin && onReveal) {
       setRevealing(true);
       onReveal(note.id);
@@ -98,15 +129,18 @@ function PostIt({ note, color, author, canSee, isMine, currentUser, isAdmin,
       }
       style={{
         "--pi": color.hex,
-        transform: `rotate(${tilt}deg)`,
+        transform: editing ? "rotate(0deg)" : `rotate(${tilt}deg)`,
         opacity: dragging ? .4 : 1,
+        cursor: editing ? "text" : undefined,
+        zIndex: editing ? 10 : undefined,
       }}
       onClick={handleClick}
-      draggable={isAdmin && !hidden}
+      onDoubleClick={canEdit && !editing ? startEdit : undefined}
+      draggable={isAdmin && !hidden && !editing}
       onDragStart={(e) => onDragStart && onDragStart(e, note)}
       onDragOver={(e) => { if (isAdmin && !hidden) e.preventDefault(); }}
       onDrop={(e) => { e.preventDefault(); e.stopPropagation(); onDropOnto && onDropOnto(note); }}
-      title={hidden && isAdmin ? "Cliquez pour révéler" : ""}
+      title={hidden && isAdmin ? "Cliquez pour révéler" : (canEdit ? "Double-cliquez pour modifier" : "")}
     >
       {groupCount > 1 && (
         <div style={{
@@ -129,6 +163,37 @@ function PostIt({ note, color, author, canSee, isMine, currentUser, isAdmin,
             {isAdmin ? "À RÉVÉLER" : (isMine ? "VOTRE NOTE" : "EN ATTENTE")}
           </div>
         </div>
+      ) : editing ? (
+        <>
+          <textarea
+            ref={taRef}
+            value={draft}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commitEdit(); }
+              if (e.key === "Escape") { e.preventDefault(); cancelEdit(); }
+            }}
+            rows={Math.max(3, Math.min(8, draft.split("\n").length + 1))}
+            style={{
+              width: "100%", border: "none", outline: "none", resize: "none",
+              background: "transparent", color: "#3a3220",
+              fontFamily: "var(--postit-font)", fontSize: "var(--postit-size)",
+              lineHeight: "var(--postit-line)", fontWeight: "var(--postit-weight)",
+            }}
+          />
+          <div className="postit__foot">
+            <span style={{ fontSize: ".72rem", color: "rgba(40,34,18,.55)", fontFamily: '"Plus Jakarta Sans",sans-serif', fontWeight: 600 }}>
+              ⌘+↵ pour enregistrer · Échap pour annuler
+            </span>
+            <span className="postit__spacer" />
+            <button className="btn btn--sm" onClick={(e) => { e.stopPropagation(); cancelEdit(); }}
+              style={{ background: "rgba(255,255,255,.6)" }}>Annuler</button>
+            <button className="btn btn--sm btn--primary" onClick={(e) => { e.stopPropagation(); commitEdit(); }}>
+              Enregistrer
+            </button>
+          </div>
+        </>
       ) : (
         <>
           <div className="postit__text">{note.text}</div>
@@ -145,6 +210,13 @@ function PostIt({ note, color, author, canSee, isMine, currentUser, isAdmin,
               <span style={{ display: "inline-flex" }}><Icon name="check" size={13} stroke={3} /></span>
               {note.votes.length}
             </button>
+            {canEdit && (
+              <button className="icon-btn" style={{ width: 26, height: 26, color: "rgba(40,34,18,.55)" }}
+                      onClick={startEdit}
+                      title="Modifier ma note">
+                <Icon name="edit" size={13} />
+              </button>
+            )}
             {isAdmin && (
               <button className="icon-btn" style={{ width: 26, height: 26, color: "rgba(40,34,18,.55)" }}
                       onClick={(e) => { e.stopPropagation(); onDelete && onDelete(note.id); }}

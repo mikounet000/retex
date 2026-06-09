@@ -28,8 +28,32 @@ function App() {
   const [session, setSession] = React.useState(() => loadSession());
   const [reportOpen, setReportOpen] = React.useState(false);
   const [toast, setToast] = React.useState(null);
+  const [joinToasts, setJoinToasts] = React.useState([]);
+  const [confetti, setConfetti] = React.useState([]);
+  const [freshIds, setFreshIds] = React.useState(() => new Set());
 
   const colorsById = React.useMemo(() => Object.fromEntries(POSTIT_COLORS.map(c => [c.id, c])), []);
+
+  const celebrateJoin = React.useCallback((user, opts = {}) => {
+    const tid = uid("tst");
+    const em = joinEmoji();
+    const line = opts.isMe ? "Votre place vous attend" : joinLine();
+    setJoinToasts(ts => [...ts, { id: tid, name: user.name, color: user.color, emoji: em, line, isMe: !!opts.isMe }]);
+    setTimeout(() => setJoinToasts(ts => ts.filter(t => t.id !== tid)), 4200);
+
+    const pieces = Array.from({ length: 11 }, (_, i) => ({
+      id: uid("c") + i,
+      emoji: joinEmoji(),
+      dx: (Math.random() - .5) * 340,
+      delay: i * 55,
+      left: 50 + (Math.random() - .5) * 50,
+    }));
+    setConfetti(c => [...c, ...pieces]);
+    setTimeout(() => setConfetti(c => c.filter(x => !pieces.some(p => p.id === x.id))), 2500);
+
+    setFreshIds(s => { const n = new Set(s); n.add(user.id); return n; });
+    setTimeout(() => setFreshIds(s => { const n = new Set(s); n.delete(user.id); return n; }), 4500);
+  }, []);
 
   // ---- application des tweaks ----
   React.useEffect(() => {
@@ -76,16 +100,24 @@ function App() {
     return (
       <>
         <HomeScreen
-          onCreate={(name, title) => { const s = makeFreshSession(name); s.title = (title && title.trim()) || "Rétro — Sprint 24"; persist(s); setSession(s); }}
+          onCreate={(name, title) => {
+            const s = makeFreshSession(name);
+            s.title = (title && title.trim()) || "Rétro — Sprint 24";
+            persist(s); setSession(s);
+            setTimeout(() => celebrateJoin(s.participants[0], { isMe: true }), 380);
+          }}
           onJoinDemo={(name) => {
             const s = makeDemoSession();
+            let joined = null;
             if (name && name.trim()) {
-              const u = makeParticipant(name.trim(), false, s.participants.length);
-              s.participants.push(u);
-              s.currentUserId = u.id;
+              joined = makeParticipant(name.trim(), false, s.participants.length);
+              s.participants.push(joined);
+              s.currentUserId = joined.id;
             }
             persist(s); setSession(s);
+            if (joined) setTimeout(() => celebrateJoin(joined, { isMe: true }), 380);
           }} />
+        {renderJoinOverlay({ joinToasts, confetti })}
         <TweaksUI t={t} setTweak={setTweak} />
       </>
     );
@@ -113,6 +145,13 @@ function App() {
     hideAll: () => { update(s => { s.postits.forEach(p => p.revealed = false); s.phase = "collecte"; return s; }); flash("Notes masquées — phase de collecte"); },
     setPhase: (phase) => update(s => { s.phase = phase; if (phase === "revue") s.postits.forEach(p => p.revealed = true); return s; }),
     deleteNote: (noteId) => update(s => { s.postits = s.postits.filter(p => p.id !== noteId); return s; }),
+    editNote: (noteId, text) => update(s => {
+      const n = s.postits.find(p => p.id === noteId);
+      if (!n) return s;
+      if (n.authorId !== currentUser.id) return s;
+      n.text = text;
+      return s;
+    }),
     moveNote: (id, colId) => update(s => { const n = s.postits.find(p => p.id === id); if (n) { n.columnId = colId; n.groupId = null; } return s; }),
     groupNotes: (sourceId, targetId) => update(s => {
       const src = s.postits.find(p => p.id === sourceId), tgt = s.postits.find(p => p.id === targetId);
@@ -144,11 +183,19 @@ function App() {
       return s;
     }),
     switchUser: (userId) => update(s => { s.currentUserId = userId; return s; }),
-    addDemoTeam: () => { update(s => {
+    addDemoTeam: () => {
       const names = ["Yanis", "Léa", "Maxime", "Sofia", "Théo"];
-      names.forEach((nm, i) => { if (!s.participants.some(u => u.name === nm)) s.participants.push(makeParticipant(nm, false, i + 1)); });
-      return s;
-    }); flash("Coéquipiers de démo ajoutés"); },
+      names.forEach((nm, i) => setTimeout(() => {
+        let added = null;
+        update(s => {
+          if (s.participants.some(u => u.name === nm)) return s;
+          added = makeParticipant(nm, false, s.participants.length);
+          s.participants.push(added);
+          return s;
+        });
+        if (added) celebrateJoin(added);
+      }, i * 750));
+    },
     copyCode: () => { try { navigator.clipboard.writeText(session.code); flash("Code copié : " + session.code); } catch { flash("Code : " + session.code); } },
     resetSession: () => { if (confirm("Réinitialiser et revenir à l'accueil ?")) { persist(null); setSession(null); } },
     endSession: () => { if (confirm("Terminer la session ? Les notes seront toutes révélées et figées.")) { update(s => { s.postits.forEach(p => p.revealed = true); s.phase = "clos"; s.timer.running = false; return s; }); flash("Session terminée — pensez à exporter ✦"); } },
@@ -167,7 +214,9 @@ function App() {
 
   return (
     <>
-      <Board session={session} isAdmin={isAdmin} currentUser={currentUser} colorsById={colorsById} actions={actions} />
+      <Board session={session} isAdmin={isAdmin} currentUser={currentUser} colorsById={colorsById} actions={actions} freshIds={freshIds} />
+
+      {renderJoinOverlay({ joinToasts, confetti })}
 
       {reportOpen && (
         <ReportPreview session={session} colorsById={colorsById}
@@ -200,6 +249,44 @@ function App() {
       )}
 
       <TweaksUI t={t} setTweak={setTweak} />
+    </>
+  );
+}
+
+/* ---- Overlay des notifications de join + confetti ---- */
+function renderJoinOverlay({ joinToasts, confetti }) {
+  return (
+    <>
+      {confetti.length > 0 && (
+        <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 600, overflow: "hidden" }}>
+          {confetti.map(c => (
+            <span key={c.id} className="confetti-piece"
+              style={{ "--dx": c.dx + "px", left: c.left + "%", animationDelay: c.delay + "ms" }}>
+              {c.emoji}
+            </span>
+          ))}
+        </div>
+      )}
+      {joinToasts.length > 0 && (
+        <div style={{
+          position: "fixed", top: 86, right: 22, zIndex: 550,
+          display: "flex", flexDirection: "column", gap: 12,
+          pointerEvents: "none", maxWidth: "calc(100vw - 44px)",
+        }}>
+          {joinToasts.map(t => (
+            <div key={t.id} className="join-toast">
+              <Avatar user={{ name: t.name, color: t.color, isAdmin: false }} size={36} showStar={false} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="join-toast__name">
+                  {t.isMe ? "Bienvenue, " : ""}{t.name}
+                </div>
+                <div className="join-toast__line">{t.line}</div>
+              </div>
+              <span className="join-toast__emoji">{t.emoji}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }

@@ -300,6 +300,69 @@ button { font-family: inherit; }
   animation: pop .26s var(--ease);
 }
 
+/* ============================================================
+   Animations d'arrivée (notifications de join + confetti)
+   ============================================================ */
+@keyframes pop-bounce {
+  0%   { transform: scale(0) rotate(-180deg); opacity: 0; }
+  55%  { transform: scale(1.28) rotate(14deg); }
+  78%  { transform: scale(.92) rotate(-6deg); }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+.avatar--fresh { animation: pop-bounce .8s var(--ease) both; }
+.avatar--fresh::before {
+  content: ""; position: absolute; inset: -4px;
+  border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 70%, transparent);
+  animation: halo-fade 1.4s var(--ease) forwards;
+}
+@keyframes halo-fade {
+  0%   { transform: scale(.6); opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+@keyframes confetti-fall {
+  0%   { transform: translate(0, -10px) rotate(0deg); opacity: 1; }
+  20%  { opacity: 1; }
+  100% { transform: translate(var(--dx, 0), 75vh) rotate(720deg); opacity: 0; }
+}
+.confetti-piece {
+  position: fixed; top: -30px; pointer-events: none;
+  font-size: 1.6rem; will-change: transform, opacity;
+  animation: confetti-fall 2.2s cubic-bezier(.4,.2,.6,1) forwards;
+}
+
+@keyframes join-toast-in {
+  0%   { transform: translateX(120%) rotate(6deg); opacity: 0; }
+  55%  { transform: translateX(-8px) rotate(-2deg); opacity: 1; }
+  78%  { transform: translateX(3px) rotate(1deg); }
+  100% { transform: translateX(0) rotate(0); opacity: 1; }
+}
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25%      { transform: rotate(-12deg); }
+  75%      { transform: rotate(12deg); }
+}
+.join-toast {
+  position: relative;
+  background: var(--surface); color: var(--ink);
+  border-radius: var(--r-lg);
+  padding: 11px 16px 11px 12px;
+  box-shadow: 0 14px 40px -10px rgba(0,0,0,.4), 0 0 0 1px var(--line) inset;
+  display: flex; align-items: center; gap: 12px;
+  font-family: "Bricolage Grotesque", sans-serif;
+  animation: join-toast-in .55s var(--ease) both;
+  min-width: 240px; max-width: 320px;
+  pointer-events: auto;
+}
+.join-toast__emoji {
+  font-size: 1.55rem; display: inline-block;
+  animation: wiggle 1.3s ease-in-out infinite;
+  transform-origin: 50% 70%;
+}
+.join-toast__name { font-weight: 700; font-size: 1rem; line-height: 1.1; }
+.join-toast__line { font-size: .82rem; color: var(--muted); font-weight: 500; margin-top: 2px; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
