@@ -142,6 +142,12 @@ function BoardHeader({ session, isAdmin, currentUser, colorsById, actions, hidde
         <Icon name="download" size={16} /> Export
       </button>
 
+      {!isAdmin && (
+        <button className="btn btn--sm" onClick={actions.leaveSession} title="Quitter cette session et revenir à l'accueil">
+          <Icon name="logout" size={15} /> Quitter
+        </button>
+      )}
+
       {isAdmin && session.phase !== "clos" && (
         <button className="btn btn--sm" onClick={actions.endSession}
           style={{ color: "var(--brand)", boxShadow: "0 0 0 1.5px color-mix(in oklab, var(--brand) 45%, transparent) inset" }}>

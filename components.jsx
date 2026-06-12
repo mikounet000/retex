@@ -29,6 +29,7 @@ function Icon({ name, size = 20, stroke = 2, ...rest }) {
     copy: <><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h8" /></>,
     arrowRight: <path d="M5 12h14M13 6l6 6-6 6" />,
     mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>,
+    logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5M21 12H9" /></>,
   };
   return <svg {...common} aria-hidden="true">{P[name] || null}</svg>;
 }

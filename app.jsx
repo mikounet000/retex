@@ -200,6 +200,11 @@ function App() {
     resetSession: () => { if (confirm("Réinitialiser et revenir à l'accueil ?")) { persist(null); setSession(null); } },
     endSession: () => { if (confirm("Terminer la session ? Les notes seront toutes révélées et figées.")) { update(s => { s.postits.forEach(p => p.revealed = true); s.phase = "clos"; s.timer.running = false; return s; }); flash("Session terminée — pensez à exporter ✦"); } },
     newSession: () => { persist(null); setSession(null); },
+    leaveSession: () => {
+      if (confirm("Quitter cette session ? Vous reviendrez à l'accueil pour en rejoindre une autre.")) {
+        persist(null); setSession(null);
+      }
+    },
     openReport: () => setReportOpen(true),
     toggleSimulate: () => update(s => { s.simulate = !s.simulate; return s; }),
     startTimer: () => update(s => { const rem = s.timer._remainMs != null ? s.timer._remainMs : s.timer.durationMin * 60000; s.timer.endsAt = Date.now() + rem; s.timer.running = true; s.timer._remainMs = null; return s; }),
